@@ -1,0 +1,158 @@
+{% assign discount = shop.metafields["abra-demo"]["volume-discount"] %}
+
+<script>
+    const priceElementSelector = ".price__regular";
+
+    const discount = {{ discount }};
+
+    const formatPrice = (priceInCents) => {
+        const formatter = new Intl.NumberFormat(window.Shopify.locale, {
+            style: 'currency',
+            currency: window.Shopify.currency.active,
+        });
+
+        return formatter.format(priceInCents / 100);
+    }
+
+    const getNewPrice = (oldPrice) => {
+        const newPrice = oldPrice - (oldPrice * discount.percentage / 100);
+        return formatPrice(newPrice);
+    }
+
+    {% if template == 'product' %}
+        const updatePrice = async () => {
+            const cartResponse = await fetch("/cart.js");
+            const cart = await cartResponse.json();
+
+            let variantId = new URL(window.location.href).searchParams.get('variant');
+            if (!variantId) {
+                variantId = {{ product.selected_or_first_available_variant.id | json }};
+            }
+
+            const cartVariant = cart.items.find(function (item) {
+                return item.variant_id == variantId && item.quantity >= discount.quantity;
+            });
+
+            if (!cartVariant) {
+                return;
+            }
+
+            const priceDiv = document.querySelector(priceElementSelector);
+
+            if (!priceDiv) {
+                return;
+            }
+
+            //#! Updated price
+            priceDiv.innerHTML = getNewPrice(cartVariant.original_price);
+
+            //#! Original price
+            const originalPriceDiv = document.querySelector("#customOriginalPrice") || document.createElement("div");
+            originalPriceDiv.id = "customOriginalPrice";
+            originalPriceDiv.style.textDecoration = "line-through";
+            originalPriceDiv.style.fontSize = "10pt";
+            originalPriceDiv.style.color = "#666";
+            originalPriceDiv.innerHTML = formatPrice(cartVariant.original_price);
+            priceDiv.parentNode.insertBefore(originalPriceDiv, priceDiv);
+
+            //#! Discount name
+            const discountDiv = document.querySelector("#customDiscount") || document.createElement("div");
+            discountDiv.id = `customDiscount`;
+            discountDiv.style.display = "flex";
+            discountDiv.style.alignItems = "center";
+            discountDiv.style.gap = "4px";
+            discountDiv.style.fontSize = "11pt";
+            discountDiv.style.color = "#008060";
+            discountDiv.style.marginTop = "4px";
+            discountDiv.innerHTML = `
+              <svg aria-hidden="true" focusable="false" class="icon icon-discount" viewBox="0 0 12 12" width="12" height="12">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M7 0h3a2 2 0 012 2v3a1 1 0 01-.3.7l-6 6a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4l6-6A1 1 0 017 0zm2 2a1 1 0 102 0 1 1 0 00-2 0z" fill="currentColor">
+                </path>
+              </svg>
+              ${discount.title}
+            `;
+            priceDiv.parentNode.insertBefore(discountDiv, priceDiv.nextSibling);
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            void updatePrice();
+        });
+
+        document.addEventListener("change", function() {
+            void updatePrice();
+        });
+    {% endif %}
+
+    {% if template == 'collection' %}
+        const updatePrices = async () => {
+            const cartResponse = await fetch("/cart.js");
+            const cart = await cartResponse.json();
+
+            const cartVariants = cart.items.filter(function (item) {
+                return item.quantity >= discount.quantity;
+            });
+
+            if (cartVariants.length === 0) {
+                return;
+            }
+
+            cartVariants.forEach((variant, index) => {
+                let productHandle = "the-multi-managed-snowboard";
+                let anchors = document.querySelectorAll(`#product-grid a[href*="${productHandle}"]`);
+
+                for (let anchor of anchors) {
+                    let cardContent = anchor.closest('.card__content');
+
+                    let priceDiv = cardContent?.querySelector('.price__regular');
+                    if (!priceDiv) {
+                        continue;
+                    }
+
+                    //#! Updated price
+                    priceDiv.innerHTML = getNewPrice(variant.original_price);
+
+                    //#! Original price
+                    const originalPriceDiv = document.querySelector(`#customOriginalPrice-${index}`) || document.createElement("div");
+                    originalPriceDiv.id = "customOriginalPrice";
+                    originalPriceDiv.style.textDecoration = "line-through";
+                    originalPriceDiv.style.fontSize = "10pt";
+                    originalPriceDiv.style.color = "#666";
+                    originalPriceDiv.innerHTML = formatPrice(variant.original_price);
+                    priceDiv.parentNode.insertBefore(originalPriceDiv, priceDiv);
+
+                    //#! Discount name
+                    const discountDiv = document.querySelector(`#customDiscount-${index}`) || document.createElement("div");
+                    discountDiv.id = `customDiscount-${index}`;
+                    discountDiv.style.display = "flex";
+                    discountDiv.style.alignItems = "center";
+                    discountDiv.style.gap = "4px";
+                    discountDiv.style.fontSize = "10pt";
+                    discountDiv.style.color = "#008060";
+                    discountDiv.style.marginTop = "4px";
+                    discountDiv.innerHTML = `
+                          <svg aria-hidden="true" focusable="false" class="icon icon-discount" viewBox="0 0 12 12" width="12" height="12">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M7 0h3a2 2 0 012 2v3a1 1 0 01-.3.7l-6 6a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4l6-6A1 1 0 017 0zm2 2a1 1 0 102 0 1 1 0 00-2 0z" fill="currentColor">
+                            </path>
+                          </svg>
+                          ${discount.title}
+                        `;
+                    priceDiv.parentNode.insertBefore(discountDiv, priceDiv.nextSibling);
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            void updatePrices();
+        });
+    {% endif %}
+</script>
+
+
+
+{% schema %}
+    {
+        "name": "Price override",
+        "target": "head",
+        "templates": ["product", "collection"]
+    }
+{% endschema %}

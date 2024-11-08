@@ -1,0 +1,7 @@
+api_version = "2024-10"
+
+[[extensions]]
+type = "theme"
+name = "Price override"
+handle = "price-override"
+
