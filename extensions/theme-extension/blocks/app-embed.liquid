@@ -97,7 +97,7 @@
             }
 
             cartVariants.forEach((variant, index) => {
-                let productHandle = "the-multi-managed-snowboard";
+                let productHandle = variant.handle;
                 let anchors = document.querySelectorAll(`#product-grid a[href*="${productHandle}"]`);
 
                 for (let anchor of anchors) {
@@ -146,8 +146,6 @@
         });
     {% endif %}
 </script>
-
-
 
 {% schema %}
     {
